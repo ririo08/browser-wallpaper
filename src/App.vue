@@ -1,30 +1,67 @@
 <script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
+import type { ComputedRef, Ref } from 'vue'
+import { useIntervalFn } from '@vueuse/core'
+import { computed, reactive, ref } from 'vue'
+
+const images: Ref<string[]> = ref([])
+
+const currentIndex = ref(0)
+// トランジションの実装
+const imagesToShow = reactive([
+  { url: images.value[0], opacity: 1 },
+  { url: images.value[1], opacity: 0 },
+])
+
+useIntervalFn(() => {
+  const nextIndex = (currentIndex.value + 1) % images.value.length
+
+  // 次の画像を準備
+  imagesToShow.push({ url: images.value[nextIndex], opacity: 0 })
+
+  // フェードイン・フェードアウトを開始
+  imagesToShow[0].opacity = 0
+  imagesToShow[1].opacity = 1
+
+  // トランジションが終わったら古い画像を削除
+  setTimeout(() => {
+    imagesToShow.shift()
+  }, 1000)
+
+  currentIndex.value = nextIndex
+}, 5000)
+
+function onSelected(event: Event) {
+  const inputElement = event.target as HTMLInputElement
+  if (!inputElement.files) {
+    return
+  }
+  const files: FileList = inputElement.files
+  const imageFiles: File[] = Array.from(files).filter((file: File) => file.type.startsWith('image/'))
+  imageFiles.forEach(v => images.value.push(URL.createObjectURL(v)))
+}
 </script>
 
 <template>
-  <div class="mt-2">
-    <a href="https://vitejs.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo">
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="./assets/vue.svg" class="logo vue mb-6" alt="Vue logo">
-    </a>
-  </div>
-  <HelloWorld msg="Vite + Vue" />
+  {{ imagesToShow }}
+  <div
+    v-for="(image, index) in imagesToShow"
+    :key="index"
+    class="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
+    :style="{
+      backgroundImage: `url(${image.url})`,
+      opacity: image.opacity,
+    }"
+  />
+  <input id="folderInput" class="z-100 absolute" type="file" webkitdirectory directory multiple @input="onSelected">
 </template>
 
 <style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 1s ease-in-out;
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
